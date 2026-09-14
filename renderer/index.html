@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GM SubZ</title>
+<style>
+  :root {
+    /* Claude-inspired warm palette */
+    --bg: #faf9f5;
+    --bg-alt: #f4f1ea;
+    --panel: #fffefb;
+    --panel-2: #f0ede4;
+    --border: #e3ddd0;
+    --border-strong: #d6cebd;
+    --text: #2b2926;
+    --text-dim: #7a7468;
+    --text-faint: #a39c8c;
+    --accent: #c15f3c;
+    --accent-hover: #a94f2f;
+    --accent-soft: rgba(193, 95, 60, 0.12);
+    --accent-soft-2: rgba(193, 95, 60, 0.22);
+    --accent2: #7a8f6e;
+    --danger: #b7503a;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 2px rgba(43, 41, 38, 0.06);
+    --shadow-md: 0 4px 14px rgba(43, 41, 38, 0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px; -webkit-font-smoothing: antialiased;
+  }
+  #app { display: grid; grid-template-columns: 1fr 330px; grid-template-rows: auto auto 1fr; height: 100vh; }
+
+  /* ---------- TOP BAR ---------- */
+  #topbar {
+    grid-column: 1 / 3; display: flex; gap: 8px; align-items: center;
+    padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  #topbar .brand { display: flex; align-items: center; gap: 8px; margin-right: 14px; }
+  #topbar .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  #topbar h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: -0.2px; }
+  #topbar .spacer { flex: 1; }
+  #topbar .divider { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+
+  button {
+    background: var(--panel-2); border: 1px solid var(--border-strong); color: var(--text);
+    padding: 7px 13px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12.5px;
+    font-weight: 500; transition: background 0.12s ease, border-color 0.12s ease, transform 0.05s ease;
+  }
+  button:hover:not(:disabled) { background: #e9e4d8; border-color: var(--border-strong); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff8f4; }
+  button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+  button.icon { padding: 7px 9px; }
+  button.ghost { background: transparent; border-color: transparent; }
+  button.ghost:hover:not(:disabled) { background: var(--panel-2); }
+  button:disabled { opacity: 0.42; cursor: not-allowed; }
+
+  /* ---------- VIDEO ---------- */
+  #videoWrap { position: relative; background: #161513; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #videoEl { max-width: 100%; max-height: 100%; }
+  #videoPlaceholder {
+    color: #6b675e; font-size: 13px; text-align: center; display: flex; flex-direction: column;
+    align-items: center; gap: 10px;
+  }
+  #videoPlaceholder .big { font-size: 32px; opacity: 0.5; }
+  #captionOverlay {
+    position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%);
+    color: #fff; font-size: 28px; font-weight: 700; text-align: center;
+    text-shadow: 0 0 6px #000, 0 0 3px #000, 2px 2px 2px #000; max-width: 85%;
+    line-height: 1.3; white-space: pre-line; pointer-events: none;
+  }
+
+  /* ---------- SIDEBAR ---------- */
+  #sidebar { background: var(--panel); border-left: 1px solid var(--border); padding: 16px; overflow-y: auto; grid-row: 2 / 4; }
+  #sidebar label { display: block; margin: 10px 0 5px; color: var(--text-dim); font-size: 12px; }
+  #sidebar select, #sidebar input[type=number], #sidebar input[type=text] {
+    width: 100%; background: var(--bg-alt); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 8px; border-radius: var(--radius-sm); font-size: 12.5px;
+  }
+  #sidebar select:focus, #sidebar input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  #sidebar .row { display: flex; gap: 8px; align-items: center; }
+  #sidebar .row input[type=range] { flex: 1; accent-color: var(--accent); }
+  #sidebar .row input[type=number] { width: 58px; }
+  #sidebar hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  #sidebar h3 {
+    font-size: 11px; color: var(--accent); margin: 0 0 8px; text-transform: uppercase;
+    letter-spacing: 0.6px; font-weight: 700;
+  }
+  #statusText { font-size: 11.5px; color: var(--text-dim); margin-top: 10px; min-height: 14px; }
+  .progress-track { background: var(--panel-2); height: 5px; border-radius: 3px; overflow: hidden; margin-top: 5px; }
+  .progress-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.15s ease; }
+
+  .checkbox-row { display: flex; align-items: center; gap: 7px; margin: 8px 0; }
+  .checkbox-row input[type=checkbox] { width: auto; accent-color: var(--accent); }
+  .checkbox-row label { margin: 0; color: var(--text); }
+
+  /* ---------- BOTTOM PANE ---------- */
+  #bottomPane { display: grid; grid-template-rows: 90px auto 1fr; border-top: 1px solid var(--border); overflow: hidden; background: var(--bg); }
+  #waveform { background: #1c1b18; }
+
+  #editToolbar {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  #editToolbar .divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+  #editToolbar .spacer { flex: 1; }
+  #findBox { width: 160px; }
+  #replaceBox { width: 160px; }
+
+  #captionList { overflow-y: auto; padding: 8px 10px; }
+  .capRow {
+    display: grid; grid-template-columns: 34px 82px 82px 1fr 30px; gap: 8px; align-items: center;
+    padding: 6px 8px; border-radius: var(--radius-sm); margin-bottom: 4px;
+    background: var(--panel); border: 1px solid var(--border);
+  }
+  .capRow:hover { border-color: var(--border-strong); }
+  .capRow.active { border-color: var(--accent); background: var(--accent-soft); }
+  .capRow .idx { color: var(--text-faint); font-size: 11px; text-align: right; }
+  .capRow .timeIn, .capRow .timeOut {
+    background: var(--bg-alt); border: 1px solid var(--border); color: var(--text-dim);
+    font-size: 11px; font-variant-numeric: tabular-nums; padding: 3px 4px; border-radius: 4px;
+    width: 100%; text-align: center;
+  }
+  .capRow .timeIn:focus, .capRow .timeOut:focus { outline: none; border-color: var(--accent); color: var(--text); }
+  .capRow .text { background: transparent; border: none; color: var(--text); outline: none; padding: 3px 4px; font-size: 13px; width: 100%; }
+  .capRow .text:focus { background: var(--bg-alt); border-radius: 4px; }
+  .capRow .text.charWarn { color: var(--danger); }
+  .capRow .del { background: none; border: none; color: var(--text-faint); cursor: pointer; padding: 2px 6px; font-size: 14px; }
+  .capRow .del:hover { color: var(--danger); }
+  .capRow.dragging { opacity: 0.5; }
+
+  #emptyListMsg { color: var(--text-faint); text-align: center; padding: 30px 10px; font-size: 12.5px; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="brand"><span class="dot"></span><h1>GM SubZ</h1></div>
+    <button id="loadVideoBtn">Load Video</button>
+    <button id="openSrtBtn">Open SRT</button>
+    <div class="divider"></div>
+    <button id="transcribeBtn" class="primary" disabled>Transcribe</button>
+    <div class="spacer"></div>
+    <button id="undoBtn" class="icon ghost" title="Undo (Ctrl+Z)" disabled>↶</button>
+    <button id="redoBtn" class="icon ghost" title="Redo (Ctrl+Y)" disabled>↷</button>
+    <div class="divider"></div>
+    <button id="exportBtn" disabled>Export SRT</button>
+  </div>
+
+  <div id="videoWrap">
+    <video id="videoEl" controls></video>
+    <div id="captionOverlay"></div>
+    <div id="videoPlaceholder"><div class="big">▶</div>Load a video to get started</div>
+  </div>
+
+  <div id="sidebar">
+    <h3>Transcription</h3>
+    <label>Whisper model</label>
+    <select id="modelSelect">
+      <option value="tiny.en">tiny.en (fastest, rough)</option>
+      <option value="base.en">base.en (fast, decent)</option>
+      <option value="small.en">small.en (slower, good) — downloads ~460MB on first use</option>
+      <option value="medium.en">medium.en (slow, very good) — downloads ~1.5GB on first use</option>
+      <option value="large-v3-q5" selected>large-v3 quantized (slowest, best) — downloads ~1GB on first use</option>
+    </select>
+
+    <hr>
+    <h3>Timeline settings</h3>
+    <label>Frame rate (match your Premiere sequence)</label>
+    <input type="number" id="frameRateInput" value="60" min="1" max="240">
+
+    <hr>
+    <h3>Captioning preferences</h3>
+    <label>Format</label>
+    <select id="formatSelect">
+      <option value="subtitle">Subtitle</option>
+      <option value="caption">Caption</option>
+    </select>
+
+    <label>Lines</label>
+    <div class="row">
+      <label style="display:flex;align-items:center;gap:4px;margin:0;"><input type="radio" name="lines" value="single" style="width:auto;"> Single</label>
+      <label style="display:flex;align-items:center;gap:4px;margin:0;"><input type="radio" name="lines" value="double" checked style="width:auto;"> Double</label>
+    </div>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="wordByWordToggle">
+      <label for="wordByWordToggle" style="margin:0;">Word-by-word (karaoke)</label>
+    </div>
+
+    <label>Maximum length (characters)</label>
+    <div class="row"><input type="range" id="maxCharsSlider" min="10" max="80" value="42"><input type="number" id="maxCharsBox" min="10" max="80" value="42"></div>
+
+    <label>Minimum duration (seconds)</label>
+    <div class="row"><input type="range" id="minDurSlider" min="0" max="10" step="0.1" value="1.0"><input type="number" id="minDurBox" min="0" max="10" step="0.1" value="1.0"></div>
+
+    <label>Gap between captions (frames)</label>
+    <div class="row"><input type="range" id="gapSlider" min="0" max="30" value="0"><input type="number" id="gapBox" min="0" max="30" value="0"></div>
+
+    <label>Timing offset (frames)</label>
+    <div class="row"><input type="range" id="offsetSlider" min="-30" max="30" value="0"><input type="number" id="offsetBox" min="-60" max="60" value="0"></div>
+
+    <button id="rechunkBtn" style="width:100%; margin-top:14px;">Re-apply settings to existing words</button>
+
+    <hr>
+    <h3>Bulk timing</h3>
+    <label>Shift all captions (seconds, + or −)</label>
+    <div class="row">
+      <input type="number" id="shiftAllBox" step="0.1" value="0" style="width:100%;">
+      <button id="shiftAllBtn">Apply</button>
+    </div>
+
+    <div id="statusText"></div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div id="bottomPane">
+    <div id="waveform"></div>
+    <div id="editToolbar">
+      <button id="addCaptionBtn" class="icon" title="Insert caption at playhead">+ Add</button>
+      <button id="splitCaptionBtn" class="icon" title="Split selected caption at playhead">Split</button>
+      <button id="mergeCaptionBtn" class="icon" title="Merge selected caption with next">Merge ↓</button>
+      <div class="divider"></div>
+      <input type="text" id="findBox" placeholder="Find...">
+      <input type="text" id="replaceBox" placeholder="Replace with...">
+      <button id="replaceAllBtn">Replace all</button>
+      <div class="spacer"></div>
+      <span id="captionCount" style="color:var(--text-dim); font-size:11.5px;"></span>
+    </div>
+    <div id="captionList"><div id="emptyListMsg">No captions yet. Transcribe a video or open an SRT file.</div></div>
+  </div>
+</div>
+
+<script type="module" src="renderer.js"></script>
+</body>
+</html>

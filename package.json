@@ -1,5 +1,5 @@
 {
-  "name": "gm-subedit",
+  "name": "gm-subz",
   "version": "1.0.0",
   "description": "Standalone caption editor - Whisper transcription + waveform-based drag editing, exports SRT for Premiere",
   "main": "main.js",
@@ -12,8 +12,17 @@
     "electron-builder": "^24.13.0"
   },
   "build": {
-    "appId": "com.gm.subedit",
-    "productName": "GM SubEdit",
+    "appId": "com.gm.subz",
+    "productName": "GM SubZ",
+    "compression": "store",
+    "publish": null,
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "!renderer/icon_source.png",
+      "package.json"
+    ],
     "win": {
       "target": "nsis",
       "icon": "renderer/icon.ico"

@@ -1,0 +1,72 @@
+# Same setup pattern as build-whisper.yml: create this at
+# .github/workflows/build-subz.yml via GitHub's web UI "Create new file"
+# (drag-and-drop skips the .github/ folder).
+
+name: Build GM SubZ for Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Checkout whisper.cpp
+        uses: actions/checkout@v4
+        with:
+          repository: ggerganov/whisper.cpp
+          path: whisper.cpp
+
+      - name: Configure CMake
+        run: cmake -B whisper.cpp/build -S whisper.cpp -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build whisper.cpp
+        run: cmake --build whisper.cpp/build --config Release -j
+
+      - name: Download ffmpeg (static)
+        run: |
+          New-Item -ItemType Directory -Force -Path host_bin | Out-Null
+          curl -L -o ffmpeg.zip https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip
+          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg_extracted -Force
+          $exe = Get-ChildItem -Path ffmpeg_extracted -Filter ffmpeg.exe -Recurse | Select-Object -First 1
+          if (-not $exe) { throw "ffmpeg.exe not found inside the downloaded archive" }
+          Copy-Item $exe.FullName -Destination host_bin\ffmpeg.exe -Force
+        shell: pwsh
+
+      - name: Download whisper models (bundled tiny + base only)
+        run: |
+          New-Item -ItemType Directory -Force -Path host_bin\models | Out-Null
+          curl -L -o host_bin\models\ggml-tiny.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
+          curl -L -o host_bin\models\ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+        shell: pwsh
+
+      - name: Copy whisper-cli + dlls into host_bin
+        run: |
+          copy whisper.cpp\build\bin\Release\whisper-cli.exe host_bin\
+          copy whisper.cpp\build\bin\Release\*.dll host_bin\
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Disable Windows Defender real-time scanning
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+        shell: pwsh
+
+      - name: Build Electron installer
+        run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gm-subz-installer
+          path: dist/*.exe
